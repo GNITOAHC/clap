@@ -83,9 +83,9 @@ typedef struct Visitor {
 
 class Clap {
   private:
-    std::unordered_map<ArgKey, std::vector<ArgVal> > args;
+    std::unordered_map<ArgKey, std::vector<ArgVal> > args; // <long opt, value>
     std::vector<Arg> argList;
-    std::vector<std::pair<std::string, std::string> > positional;
+    std::vector<std::pair<std::string, std::string> > positional; // <name, help>
     struct ProgramInfo {
         std::string program;
         std::string version;
@@ -117,14 +117,15 @@ class Clap {
             // }
 
             Arg arg = {
-                .shortKey = match[2].matched ? match[2].str().substr(1, 1) : "",
-                .longKey  = match[3].str().substr(2),
-                .help     = trim(match[5].str()),
+                // e.g. [1]-f, --file <filename:string> The input file to read
+                .shortKey = match[2].matched ? match[2].str().substr(1, 1) : "", // -f
+                .longKey  = match[3].str().substr(2),                            // --file
+                .help     = trim(match[5].str()), // The input file to read
                 .type     = std::vector<ArgType>(),
-                .group    = match[1].matched ? extractGroup(match[1].str()) : 0,
+                .group    = match[1].matched ? extractGroup(match[1].str()) : 0, // [1]
             };
 
-            if (match[4].matched) {
+            if (match[4].matched) { // <filename:string>
                 std::string typeStr = match[4].str();
                 std::string::const_iterator typeSearchStart(typeStr.cbegin());
                 while (std::regex_search(typeSearchStart, typeStr.cend(), typeMatch, typeRegex)) {
@@ -132,9 +133,9 @@ class Clap {
                     //     std::cout << i << ": " << typeMatch[i] << std::endl;
                     // }
                     // std::cout << std::endl;
-                    std::string argName = typeMatch[1];
-                    ArgType argType     = { typeMatch[1], extractArgType(typeMatch[2]),
-                                        typeMatch[3].matched ? ArgType::OPTIONAL
+                    std::string argName = typeMatch[1];                                 // filename
+                    ArgType argType     = { typeMatch[1], extractArgType(typeMatch[2]), // string
+                                        typeMatch[3].matched ? ArgType::OPTIONAL    // ...
                                                                  : ArgType::REQUIRED };
                     arg.type.push_back(argType);
                     typeSearchStart = typeMatch.suffix().first;
@@ -159,13 +160,15 @@ class Clap {
         //     std::cout << std::endl;
         // }
 
-        std::regex positionalRegex(R"(<([\w\-]+)>\n)");
+        std::regex positionalRegex(R"(<([\w\-]+)> (.+)\n)");
         std::smatch matchPositional;
         std::string::const_iterator searchStartPositional(params.cbegin());
         while (std::regex_search(searchStartPositional, params.cend(), matchPositional,
                                  positionalRegex)) {
             // std::cout << "Positional: " << matchPositional[1] << std::endl;
-            this->positional.push_back({ matchPositional[1].str(), "" });
+            std::string posHelp = "";
+            if (matchPositional[2].matched) { posHelp = matchPositional[2].str(); }
+            this->positional.push_back({ matchPositional[1].str(), posHelp });
 
             searchStartPositional = matchPositional.suffix().first;
         }
@@ -214,6 +217,14 @@ class Clap {
         std::sort(this->argList.begin(), this->argList.end(),
                   [] (const Arg& a, const Arg& b) { return a.group < b.group; });
     }
+    Clap() {};
+
+    void setParams (std::string params) {
+        this->parseArgs(params);
+        this->parseProgram(params);
+        std::sort(this->argList.begin(), this->argList.end(),
+                  [] (const Arg& a, const Arg& b) { return a.group < b.group; });
+    }
 
     void parse (const int argc, char **argv, int& iter, int terminatePos = 1) {
         // std::cout << "argc = " << argc << std::endl;
@@ -251,7 +262,7 @@ class Clap {
                 continue;
             }
 
-            std::cout << "This arg is found: " << cur << std::endl;
+            // std::cout << "This arg is found: " << cur << std::endl;
             int peek = iter + 1; // Consume the argument indicator itself
             for (auto const& a : argType) {
                 if (a.required == ArgType::NO) break;
@@ -311,7 +322,7 @@ class Clap {
 
         if (this->positional.size() > 0) { std::cout << "\n\tPOSITIONAL ARGUMENTS:\n"; }
         for (auto const& p : this->positional) {
-            std::cout << "\t\t<" << p.first << ">" << std::endl;
+            std::cout << "\t\t<" << p.first << ">" << "  " << p.second << std::endl;
         }
     };
 
