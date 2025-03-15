@@ -265,6 +265,8 @@ class Clap {
             // std::cout << "This arg is found: " << cur << std::endl;
             int peek = iter + 1; // Consume the argument indicator itself
             for (auto const& a : argType) {
+                if (peek == argc) break;
+
                 if (a.required == ArgType::NO) break;
                 if (a.required == ArgType::OPTIONAL && search(argv[peek]).size() != 0) break;
                 // std::cout << argTypeStr[a.type] << "|" << argTypeReq[a.required] << "|";
@@ -277,7 +279,6 @@ class Clap {
                     default: std::cerr << "Parse error: " << std::endl; break;
                 }
                 ++peek;
-                if (peek == argc) break;
             }
 
             this->args.insert({ getLong(cur), argVal });
